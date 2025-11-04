@@ -1,19 +1,19 @@
 {
-	"name": "OS-Course-Lab-Dev",
-	"build": { "dockerfile": "Dockerfile" },
+	"name": "OS-Course-Lab",
+	"image": "ipads/oslab:25.03",
 	"remoteUser": "stu",
 	"updateRemoteUserUID": true,
 	"runArgs": ["--hostname", "Chcore"],
 	"customizations": {
 		"vscode": {
-		"extensions": [
-			"ms-vscode.cpptools",
-			"ms-vscode.hexeditor",
-			"llvm-vs-code-extensions.vscode-clangd",
-			"ms-vscode.makefile-tools",
-			"twxs.cmake",
-			"dan-c-underwood.arm"
-		]
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-vscode.hexeditor",
+				"llvm-vs-code-extensions.vscode-clangd",
+				"ms-vscode.makefile-tools",
+				"twxs.cmake",
+				"dan-c-underwood.arm"
+			]
+		}
 	}
-  }
 }

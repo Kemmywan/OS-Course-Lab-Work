@@ -21,7 +21,7 @@
 .extern init_c
 
 BEGIN_FUNC(_start)
-	mrs	x8, mpidr_el1
+	mrs	x8, mpidr_el1 //mpidr_el1：Multi-Processor ID Register，存储当前 CPU 的唯一标识
 	and	x8, x8,	#0xFF
 	cbz	x8, primary
 

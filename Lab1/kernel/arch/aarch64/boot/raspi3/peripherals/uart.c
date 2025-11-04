@@ -139,8 +139,12 @@ static void early_uart_send(unsigned int c)
 
 void uart_send_string(char *str)
 {
-        /* LAB 1 TODO 3 BEGIN */
-        /* BLANK BEGIN */
-        /* BLANK END */
-        /* LAB 1 TODO 3 END */
+    /* LAB 1 TODO 3 BEGIN */
+    /* BLANK BEGIN */
+	while (*str) {
+        early_uart_send(*str);
+        str++;
+    }
+    /* BLANK END */
+    /* LAB 1 TODO 3 END */
 }
