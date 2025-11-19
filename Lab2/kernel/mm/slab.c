@@ -140,6 +140,18 @@ static void choose_new_current_slab(struct slab_pointer * __maybe_unused pool)
         /* Hint: Choose a partial slab to be a new current slab. */
         /* BLANK BEGIN */
 
+        if (!list_empty(&pool->partial_slab_list)) {
+                struct slab_header *new_current;
+                new_current = list_entry(
+                        &pool->partial_slab_list.next,
+                        struct slab_header,
+                        node);
+                list_del(&new_current->node);
+                pool->current_slab = new_current;
+        } else {
+                pool->current_slab = NULL;
+        }
+
         /* BLANK END */
         /* LAB 2 TODO 2 END */
 }
@@ -170,6 +182,26 @@ static void *alloc_in_slab_impl(int order)
          * If current slab is full, choose a new slab as the current one.
          */
         /* BLANK BEGIN */
+
+        while (1) {
+                free_list = (struct slab_slot_list *)current_slab->free_list_head;
+                if (free_list != NULL) {
+                        current_slab->free_list_head = free_list->next_free;
+                        current_slab->current_free_cnt--;
+                        break;
+                } else {
+                        choose_new_current_slab(&slab_pool[order]);
+                        current_slab = slab_pool[order].current_slab;
+                        if (current_slab == NULL) {
+                                current_slab = init_slab_cache(order, SIZE_OF_ONE_SLAB);
+                                if (current_slab == NULL) {
+                                        unlock(&slabs_locks[order]);
+                                        return NULL;
+                                }
+                                slab_pool[order].current_slab = current_slab;
+                        }
+                }
+        }
 
         /* BLANK END */
         /* LAB 2 TODO 2 END */
@@ -298,7 +330,10 @@ void free_in_slab(void *addr)
          */
         /* BLANK BEGIN */
 
-        UNUSED(slot);
+        slot->next_free = (struct slab_slot_list *)slab->free_list_head;
+        slab->free_list_head = slot;
+        slab->current_free_cnt++;
+
         /* BLANK END */
         /* LAB 2 TODO 2 END */
 

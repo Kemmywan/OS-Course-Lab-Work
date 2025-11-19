@@ -300,6 +300,50 @@ int query_in_pgtbl(void *pgtbl, vaddr_t va, paddr_t *pa, pte_t **entry)
          * `-ENOMAPPING` if the va is not mapped.
          */
         /* BLANK BEGIN */
+        ptp_t *pt_p;
+        pte_t *pt_e;
+        int res;
+
+        pt_p = (ptp_t *) pgtbl;
+
+        res = get_next_ptp(pt_p, 0, va, &pt_p, &pt_e, false, NULL);
+        if (res == -ENOMAPPING) {
+                return res;
+        }
+
+        res = get_next_ptp(pt_p, 1, va, &pt_p, &pt_e, false, NULL);
+        if (res == -ENOMAPPING) {
+                return res;
+        } else if (res == BLOCK_PTP) {
+                if (entry != NULL){
+                        *entry = pt_e;
+                }
+                *pa = virt_to_phys(pt_p) + GET_VA_OFFSET_L1(va);
+                return 0;
+        }
+
+        res = get_next_ptp(pt_p, 2, va, &pt_p, &pt_e, false, NULL);
+        if (res == -ENOMAPPING) {
+                return res;
+        } else if (res == BLOCK_PTP) {
+                if (entry != NULL){
+                        *entry = pt_e;
+                }
+                *pa = virt_to_phys(pt_p) + GET_VA_OFFSET_L2(va);
+                return 0;
+        }
+
+        res = get_next_ptp(pt_p, 3, va, &pt_p, &pt_e, false, NULL);
+        if (res == -ENOMAPPING) {
+                return res;
+        } 
+
+        if (entry != NULL)
+        {
+                *entry = pt_e;
+        }
+        *pa = virt_to_phys(pt_p) + GET_VA_OFFSET_L3(va);
+
 
         /* BLANK END */
         /* LAB 2 TODO 4 END */
@@ -320,6 +364,45 @@ static int map_range_in_pgtbl_common(void *pgtbl, vaddr_t va, paddr_t pa,
          * Return 0 on success.
          */
         /* BLANK BEGIN */
+
+        u64 page_total = (len - 1) / PAGE_SIZE + 1;
+        while(page_total > 0){
+                ptp_t *pt_p =(ptp_t *)pgtbl;
+                pte_t *pt_e;
+
+                get_next_ptp(pt_p, 0, va, &pt_p, &pt_e, true, NULL);
+                get_next_ptp(pt_p, 1, va, &pt_p, &pt_e, true, NULL);
+                get_next_ptp(pt_p, 2, va, &pt_p, &pt_e, true, NULL);
+
+                for (int i = GET_L3_INDEX(va); i < PTP_ENTRIES; i++){
+                        pte_t new_pt_e = {
+                                .pte = 0,
+                                .l3_page = {
+                                        .is_valid = 1,
+                                        .is_page = 1,
+                                        .pfn = pa >> PAGE_SHIFT
+                                }
+                        };
+
+                        
+
+                        set_pte_flags(&new_pt_e, flags, kind);
+                        pt_p -> ent[i] = new_pt_e;
+
+                        -- page_total;
+
+                        if (page_total == 0){
+                                break;
+                        }
+
+                        va += PAGE_SIZE;
+                        pa += PAGE_SIZE;
+
+                }
+                
+
+        }
+
 
         /* BLANK END */
         /* LAB 2 TODO 4 END */
@@ -399,6 +482,43 @@ int unmap_range_in_pgtbl(void *pgtbl, vaddr_t va, size_t len,
          */
         /* BLANK BEGIN */
 
+        u64 page_total = (len - 1) / PAGE_SIZE + 1;
+
+        while (page_total > 0){
+                ptp_t *pt_p = (ptp_t *)pgtbl;
+                pte_t *pt_e;
+                int res;
+
+                res = get_next_ptp(pt_p, 0, va, &pt_p, &pt_e, false, NULL);
+                if (res == -ENOMAPPING) {
+                        page_total -= L0_PER_ENTRY_PAGES;
+                        va += L0_PER_ENTRY_PAGES * PAGE_SIZE;
+                } else {
+                        res = get_next_ptp(pt_p, 1, va, &pt_p, &pt_e, false, NULL);
+                        if (res == -ENOMAPPING) {
+                                page_total -= L1_PER_ENTRY_PAGES;
+                                va += L1_PER_ENTRY_PAGES * PAGE_SIZE;
+                        } else {
+                                res = get_next_ptp(pt_p, 2, va, &pt_p, &pt_e, false, NULL);
+                                if (res == -ENOMAPPING) {
+                                        page_total -= L2_PER_ENTRY_PAGES;
+                                        va += L2_PER_ENTRY_PAGES * PAGE_SIZE;
+                                } else {
+                                        for (int i = GET_L3_INDEX(va); i < PTP_ENTRIES; ++i) {
+                                                pt_p -> ent[i].pte = PTE_DESCRIPTOR_INVALID;
+
+                                                va += PAGE_SIZE;
+
+                                                -- page_total;
+                                                if (page_total == 0){
+                                                        break;
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }
+
         /* BLANK END */
         /* LAB 2 TODO 4 END */
 
@@ -418,6 +538,30 @@ int mprotect_in_pgtbl(void *pgtbl, vaddr_t va, size_t len, vmr_prop_t flags)
          * Return 0 on success.
          */
         /* BLANK BEGIN */
+
+        u64 page_total = (len - 1) / PAGE_SIZE + 1;
+        while(page_total > 0){
+                ptp_t *pt_p =(ptp_t *)pgtbl;
+                pte_t *pt_e;
+
+                get_next_ptp(pt_p, 0, va, &pt_p, &pt_e, true, NULL);
+                get_next_ptp(pt_p, 1, va, &pt_p, &pt_e, true, NULL);
+                get_next_ptp(pt_p, 2, va, &pt_p, &pt_e, true, NULL);
+
+                for (int i = GET_L3_INDEX(va); i < PTP_ENTRIES; i++){
+                        set_pte_flags(&(pt_p -> ent[i]), flags, USER_PTE);
+
+                        va += PAGE_SIZE;
+
+                        -- page_total;
+                        if (page_total == 0){
+                                break;
+                        }
+                }
+                
+
+        }
+
 
         /* BLANK END */
         /* LAB 2 TODO 4 END */
