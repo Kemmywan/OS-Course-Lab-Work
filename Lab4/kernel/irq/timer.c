@@ -133,6 +133,11 @@ void handle_timer_irq(void)
         /* Decrease the budget of current thread by 1 if current thread is not NULL */
         /* We will call the sched_periodic in the caller handle_irq so no need to call sched() now. */
 
+        if(current_thread && (current_thread -> thread_ctx) && (current_thread -> thread_ctx -> sc) && (current_thread -> thread_ctx -> sc -> budget > 0))
+        {
+                current_thread -> thread_ctx -> sc -> budget --;
+        }
+
         /* LAB 4 TODO END (exercise 6) */
 }
 
